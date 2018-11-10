@@ -140,8 +140,8 @@ namespace dlx {
 
         static constexpr std::optional<solution> find_solution(data &state, solution &sol) {
             // Check to see if we have a complete solution, i.e if the header only loops to itself.
-            // TODO: We could modify this to make a callback for solutions and then iterate over them, but
-            // TODO: I'm not sure how we would do this with constexpr.
+            // We could modify this to make a callback for solutions and then iterate over them, but
+            // I'm not sure how we would do this with constexpr.
             if (state.R[header] == header)
                 return sol;
 
@@ -261,12 +261,8 @@ namespace dlx {
             sol[state.RM[rowIdx]] = true;
 
             // Cover all the columns in the row.
-//            const index initialIdx = state.RI[rowIdx].first;
-//            index i = initialIdx;
-
             index i  = rowIdx;
             do {
-                // TODO: the state.C is something I added.
                 coverColumn(state, state.C[i]);
                 i = state.R[i];
                 //} while (i != initialIdx);
@@ -290,13 +286,8 @@ namespace dlx {
             sol[state.RM[rowIdx]] = false;
 
             // Uncover all the columns in the row.
-//            const index initialIdx = state.RI[rowIdx].second - 1;
-//            assert(initialIdx == state.L[state.RI[rowIdx].first]);
-//            index i = initialIdx;
-
             index i = rowIdx;
             do {
-                // TODO: the state.C is something I added.
                 uncoverColumn(state, state.C[i]);
                 i = state.L[i];
             } while (i != rowIdx);
@@ -311,26 +302,23 @@ int main() {
     // r1 1 1 0 1 0 1
     // r2 0 1 0 1 0 0
     // r3 0 0 0 0 0 1
-//    constexpr dlx::position_array<10> positions {
-//        /** r0 **/ std::make_pair(0, 0), std::make_pair(0, 2), std::make_pair(0, 4),
-//        /** r1 **/ std::make_pair(1, 0), std::make_pair(1, 1), std::make_pair(1, 3), std::make_pair(1, 5),
-//        /** r2 **/ std::make_pair(2, 1), std::make_pair(2, 3),
-//        /** r3 **/ std::make_pair(3, 5)
-//    };
-//    constexpr auto sol = dlx::DLX<6, 4, 10>::solve(positions);
-//    if (sol.has_value()) {
-//        std::cout << "Found solution!\n";
-//    } else {
-//        std::cout << "No solution found.\n";
-//    }
-
-    dlx::position_array<10> positions {
-            /** r0 **/ std::make_pair(0, 0), std::make_pair(0, 2), std::make_pair(0, 4),
-            /** r1 **/ std::make_pair(1, 0), std::make_pair(1, 1), std::make_pair(1, 3), std::make_pair(1, 5),
-            /** r2 **/ std::make_pair(2, 1), std::make_pair(2, 3),
-            /** r3 **/ std::make_pair(3, 5)
+    constexpr dlx::position_array<10> positions {
+        /** r0 **/ std::make_pair(0, 0), std::make_pair(0, 2), std::make_pair(0, 4),
+        /** r1 **/ std::make_pair(1, 0), std::make_pair(1, 1), std::make_pair(1, 3), std::make_pair(1, 5),
+        /** r2 **/ std::make_pair(2, 1), std::make_pair(2, 3),
+        /** r3 **/ std::make_pair(3, 5)
     };
-    auto sol = dlx::DLX<6, 4, 10>::run(positions);
+    constexpr auto sol = dlx::DLX<6, 4, 10>::run(positions);
+
+
+//    dlx::position_array<10> positions {
+//            /** r0 **/ std::make_pair(0, 0), std::make_pair(0, 2), std::make_pair(0, 4),
+//            /** r1 **/ std::make_pair(1, 0), std::make_pair(1, 1), std::make_pair(1, 3), std::make_pair(1, 5),
+//            /** r2 **/ std::make_pair(2, 1), std::make_pair(2, 3),
+//            /** r3 **/ std::make_pair(3, 5)
+//    };
+//    auto sol = dlx::DLX<6, 4, 10>::run(positions);
+
     if (sol.has_value()) {
         std::cout << "Found solution!\n";
         for (int i=0; i < 4; ++i)
