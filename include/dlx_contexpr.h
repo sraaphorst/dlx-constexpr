@@ -33,6 +33,7 @@ namespace dlx {
      */
     template<size_t NumCols, size_t NumRows, size_t NumNodes>
     struct DLX {
+    private:
         /** DATA TYPES **/
         static constexpr size_t dim = NumCols + 1 + NumNodes;
         using direction = std::array<index, dim>;
@@ -67,119 +68,6 @@ namespace dlx {
             // The coordinates of rows.
             row_mapping RM{};
         };
-
-        //constexpr void run(const column_type &columnTypes, const position_array &positions) {
-        static constexpr std::optional<solution> run(const position_array<NumNodes> &positions) {
-            data d{};
-
-            // Create the header data.
-            for (index i = 0; i < HeaderSize; ++i) {
-                //d.T[i] = columnTypes[i];
-                d.U[i] = i;
-                d.D[i] = i;
-                d.C[i] = i;
-                d.S[i] = 0;
-                d.RM[i] = NumRows;
-            }
-
-            // Do the L-R linking of the columns.
-            for (index i = 0; i <= header; ++i) {
-                d.R[i] = (i + 1) % HeaderSize;
-                d.L[i] = (i - 1 + HeaderSize) % HeaderSize;
-            }
-
-            // Now handle the rows.
-            index rowIdx = 0;
-            while (rowIdx < NumNodes) {
-                // Find the start and end positions of this row.
-                const index rowNumber = positions[rowIdx].first;
-
-                const index rowStartIdx = rowIdx;
-                index rowEndIdx = rowIdx;
-                while (rowEndIdx < NumNodes && positions[rowEndIdx].first == rowNumber)
-                    ++rowEndIdx;
-
-                // The row goes from [rowStartIdx, rowEndIdx), so link the nodes.
-                for (index idx = rowStartIdx; idx < rowEndIdx; ++idx) {
-                    const auto[row, column] = positions[idx];
-                    const index posIdx = HeaderSize + idx;
-
-                    // Set the row and column for the new node.
-                    d.C[posIdx] = column;
-                    d.RM[posIdx] = rowNumber;
-
-                    // Link to bottom of column, with up pointing to col's previous up, and down to header.
-                    d.U[posIdx] = d.U[column];
-                    d.D[posIdx] = column;
-
-                    // Adjust the header to include the new entry.
-                    d.D[d.U[column]] = posIdx;
-                    d.U[column] = posIdx;
-
-                    // Add 1 to the size of the column.
-                    ++d.S[column];
-
-                    // Link left to previous, if there is one, and right to first in row.
-                    d.L[posIdx] = idx > rowStartIdx ? posIdx - 1 : posIdx;
-                    d.R[posIdx] = rowStartIdx + HeaderSize;
-
-                    // Adjust right and left links of this node to point to this node.
-                    d.L[d.R[posIdx]] = posIdx;
-                    d.R[d.L[posIdx]] = posIdx;
-                }
-
-                rowIdx = rowEndIdx;
-            }
-
-            // Initialize the solution.
-            solution sol{};
-            for (auto &s: sol)
-                s = false;
-            return find_solution(d, sol);
-        }
-
-        static constexpr std::optional<solution> find_solution(data &state, solution &sol) {
-            // Check to see if we have a complete solution, i.e if the header only loops to itself.
-            // We could modify this to make a callback for solutions and then iterate over them, but
-            // I'm not sure how we would do this with constexpr.
-            if (state.R[header] == header)
-                return sol;
-
-            // Choose the column with the smallest number of rows to minimize the branching factor.
-            index minColumnIndex = state.R[header];
-            for (index i = state.R[minColumnIndex]; i != header; ++i)
-                if (state.S[i] < state.S[minColumnIndex])
-                    minColumnIndex = i;
-
-            // If there ae no available rows to cover this column, we cannot extend.
-            if (state.S[minColumnIndex] == 0)
-                return std::nullopt;
-
-            // Cover the column.
-            coverColumn(state, minColumnIndex);
-
-            // Now extend the solution by trying each possible row in the column.
-            for (index i = state.D[minColumnIndex]; i != minColumnIndex; i = state.D[i]) {
-                useRow(state, i, sol);
-//                sol[state.RM[i]] = true;
-//                for (index j = state.R[i]; j != i; j = state.R[j])
-//                    coverColumn(state, state.C[j]);
-
-                // Recurse and see if we can find a solution.
-                const auto soln = find_solution(state, sol);
-                if (soln.has_value())
-                    return soln;
-
-                // Reverse the operation.
-                unuseRow(state, i, sol);
-//                sol[state.RM[i]] = false;
-//                for (index j = state.L[i]; j != i; j = state.L[j])
-//                    uncoverColumn(state, state.C[j]);
-            }
-
-            // If we reach this point, we could not find a row that leads to completion.
-            return std::nullopt;
-        }
 
         /**
          * Covers a column, i.e. removes the column from the header, and then removes all rows that have entries
@@ -292,39 +180,126 @@ namespace dlx {
                 i = state.L[i];
             } while (i != rowIdx);
         }
+
+    public:
+
+        /**
+         * Given a set of "positions" of the form (r,c) indicating that element c is in subset r, run the
+         * exact cover problem using Knuth's dancing links algorithm.
+         *
+         * @param positions list of the positions describing the subsets
+         * @return the first solution found if one exists, or nullopt otherwise
+         */
+        static constexpr std::optional<solution> run(const position_array<NumNodes> &positions) {
+            data d{};
+
+            // Create the header data.
+            for (index i = 0; i < HeaderSize; ++i) {
+                //d.T[i] = columnTypes[i];
+                d.U[i] = i;
+                d.D[i] = i;
+                d.C[i] = i;
+                d.S[i] = 0;
+                d.RM[i] = NumRows;
+            }
+
+            // Do the L-R linking of the columns.
+            for (index i = 0; i <= header; ++i) {
+                d.R[i] = (i + 1) % HeaderSize;
+                d.L[i] = (i - 1 + HeaderSize) % HeaderSize;
+            }
+
+            // Now handle the rows.
+            index rowIdx = 0;
+            while (rowIdx < NumNodes) {
+                // Find the start and end positions of this row.
+                const index rowNumber = positions[rowIdx].first;
+
+                const index rowStartIdx = rowIdx;
+                index rowEndIdx = rowIdx;
+                while (rowEndIdx < NumNodes && positions[rowEndIdx].first == rowNumber)
+                    ++rowEndIdx;
+
+                // The row goes from [rowStartIdx, rowEndIdx), so link the nodes.
+                for (index idx = rowStartIdx; idx < rowEndIdx; ++idx) {
+                    const auto[row, column] = positions[idx];
+                    const index posIdx = HeaderSize + idx;
+
+                    // Set the row and column for the new node.
+                    d.C[posIdx] = column;
+                    d.RM[posIdx] = rowNumber;
+
+                    // Link to bottom of column, with up pointing to col's previous up, and down to header.
+                    d.U[posIdx] = d.U[column];
+                    d.D[posIdx] = column;
+
+                    // Adjust the header to include the new entry.
+                    d.D[d.U[column]] = posIdx;
+                    d.U[column] = posIdx;
+
+                    // Add 1 to the size of the column.
+                    ++d.S[column];
+
+                    // Link left to previous, if there is one, and right to first in row.
+                    d.L[posIdx] = idx > rowStartIdx ? posIdx - 1 : posIdx;
+                    d.R[posIdx] = rowStartIdx + HeaderSize;
+
+                    // Adjust right and left links of this node to point to this node.
+                    d.L[d.R[posIdx]] = posIdx;
+                    d.R[d.L[posIdx]] = posIdx;
+                }
+
+                rowIdx = rowEndIdx;
+            }
+
+            // Initialize the solution.
+            solution sol{};
+            for (auto &s: sol)
+                s = false;
+            return find_solution(d, sol);
+        }
+
+        static constexpr std::optional<solution> find_solution(data &state, solution &sol) {
+            // Check to see if we have a complete solution, i.e if the header only loops to itself.
+            // We could modify this to make a callback for solutions and then iterate over them, but
+            // I'm not sure how we would do this with constexpr.
+            if (state.R[header] == header)
+                return sol;
+
+            // Choose the column with the smallest number of rows to minimize the branching factor.
+            index minColumnIndex = state.R[header];
+            for (index i = state.R[minColumnIndex]; i != header; ++i)
+                if (state.S[i] < state.S[minColumnIndex])
+                    minColumnIndex = i;
+
+            // If there ae no available rows to cover this column, we cannot extend.
+            if (state.S[minColumnIndex] == 0)
+                return std::nullopt;
+
+            // Cover the column.
+            coverColumn(state, minColumnIndex);
+
+            // Now extend the solution by trying each possible row in the column.
+            for (index i = state.D[minColumnIndex]; i != minColumnIndex; i = state.D[i]) {
+                useRow(state, i, sol);
+//                sol[state.RM[i]] = true;
+//                for (index j = state.R[i]; j != i; j = state.R[j])
+//                    coverColumn(state, state.C[j]);
+
+                // Recurse and see if we can find a solution.
+                const auto soln = find_solution(state, sol);
+                if (soln.has_value())
+                    return soln;
+
+                // Reverse the operation.
+                unuseRow(state, i, sol);
+//                sol[state.RM[i]] = false;
+//                for (index j = state.L[i]; j != i; j = state.L[j])
+//                    uncoverColumn(state, state.C[j]);
+            }
+
+            // If we reach this point, we could not find a row that leads to completion.
+            return std::nullopt;
+        }
     };
-}
-
-int main() {
-    // Here is the structure of the test:
-    //    0 1 2 3 4 5
-    // r0 1 0 1 0 1 0
-    // r1 1 1 0 1 0 1
-    // r2 0 1 0 1 0 0
-    // r3 0 0 0 0 0 1
-    constexpr dlx::position_array<10> positions {
-        /** r0 **/ std::make_pair(0, 0), std::make_pair(0, 2), std::make_pair(0, 4),
-        /** r1 **/ std::make_pair(1, 0), std::make_pair(1, 1), std::make_pair(1, 3), std::make_pair(1, 5),
-        /** r2 **/ std::make_pair(2, 1), std::make_pair(2, 3),
-        /** r3 **/ std::make_pair(3, 5)
-    };
-    constexpr auto sol = dlx::DLX<6, 4, 10>::run(positions);
-
-
-//    dlx::position_array<10> positions {
-//            /** r0 **/ std::make_pair(0, 0), std::make_pair(0, 2), std::make_pair(0, 4),
-//            /** r1 **/ std::make_pair(1, 0), std::make_pair(1, 1), std::make_pair(1, 3), std::make_pair(1, 5),
-//            /** r2 **/ std::make_pair(2, 1), std::make_pair(2, 3),
-//            /** r3 **/ std::make_pair(3, 5)
-//    };
-//    auto sol = dlx::DLX<6, 4, 10>::run(positions);
-
-    if (sol.has_value()) {
-        std::cout << "Found solution!\n";
-        for (int i=0; i < 4; ++i)
-            std::cout << (*sol)[i] << ' ';
-        std::cout << '\n';
-    } else {
-        std::cout << "No solution found.\n";
-    }
 }
