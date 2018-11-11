@@ -162,7 +162,7 @@ namespace dlx {
          */
         template <typename Data, typename Solution>
         static constexpr void useRow(Data &&state, index rowIdx, Solution &&sol) {
-            assert(rowIdx > header && rowIdx < HeaderSize + NumNodes);
+            //assert(rowIdx > header && rowIdx < HeaderSize + NumNodes);
             sol[state.RM[rowIdx]] = true;
 
             // Cover all the columns in the row.
@@ -188,7 +188,7 @@ namespace dlx {
          */
         template <typename Data, typename Solution>
         static constexpr void unuseRow(Data &&state, index rowIdx, solution &&sol) {
-            assert(rowIdx > header && rowIdx < HeaderSize + NumNodes);
+            //assert(rowIdx > header && rowIdx < HeaderSize + NumNodes);
             sol[state.RM[rowIdx]] = false;
 
             // Uncover all the columns in the row.

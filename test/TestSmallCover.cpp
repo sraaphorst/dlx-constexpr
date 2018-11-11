@@ -134,6 +134,6 @@ TEST_CASE("Small exact cover 4") {
         {17, 9}
     }};
 
-    auto solution = dlx::DLX<10, 18, 35>::run(positions);
+    constexpr auto solution = dlx::DLX<10, 18, 35>::run(positions);
     REQUIRE(solution.has_value());
 }

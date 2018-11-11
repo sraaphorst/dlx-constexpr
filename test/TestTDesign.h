@@ -134,10 +134,8 @@ namespace cmath {
             auto nodes_per_row = nCr(k, t),
             auto nodes = rows * nodes_per_row>
     constexpr std::optional<std::array<bool, rows>> run_t_design() {
-        const auto positions = cmath::makeDesignPositions<v, k, t>();
-
-        // And solve, all constexpr!
-        return dlx::DLX<cols, rows, nodes>::run(positions);
+        // Solve, all constexpr!
+        return dlx::DLX<cols, rows, nodes>::run(makeDesignPositions<v, k, t>());
     }
 
     template<size_t v, size_t k, size_t t,
