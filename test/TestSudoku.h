@@ -116,7 +116,7 @@ namespace sudoku {
     }
 
     template<size_t NumFixedRows, size_t N = 3>
-    constexpr std::array<size_t, NumFixedRows> makeFixedRows(const fixing_array <NumFixedRows> &fixed) {
+    constexpr std::array<size_t, NumFixedRows> makeFixedCells(const fixing_array <NumFixedRows> &fixed) {
         std::array<size_t, NumFixedRows> rows{};
         for (size_t i = 0; i < NumFixedRows; ++i)
             rows[i] = toRow<N>(fixed[i]);
@@ -144,7 +144,7 @@ namespace sudoku {
             auto arrayNodes = 4 * arrayRows>
     constexpr std::optional<std::array<bool, arrayRows>> runSudoku(const fixing_array<NumFixedRows> &fixed) {
         return dlx::DLX<totalCols, arrayRows, arrayNodes>::run(makeSudokuPositions<N>(),
-                makeFixedRows<NumFixedRows, N>(fixed));
+                makeFixedCells<NumFixedRows, N>(fixed));
     }
 
     // Need a constexpr toupper.

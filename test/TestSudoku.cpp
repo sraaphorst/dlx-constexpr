@@ -13,7 +13,7 @@
 
 using namespace sudoku;
 
-TEST_CASE("Solve simple Sudoku") {
+TEST_CASE("Test makeFixedCells functions") {
     constexpr fixing_array<27> fixings{{
         {0, 0, 1}, {0, 4, 8}, {0, 5, 9}, {0, 6, 4}, {0, 7, 5}, {0, 8, 7},
         {1, 0, 7}, {1, 1, 3}, {1, 2, 8},
@@ -24,21 +24,18 @@ TEST_CASE("Solve simple Sudoku") {
         {7, 2, 7}, {7, 5, 8}, {7, 7, 9}, {7, 8, 5},
         {8, 1, 6}, {8, 4, 9}, {8, 6, 3}
     }};
-
-    constexpr auto p = makeSudokuPositions<3>();
-//    for (int i = 0; i < p.size(); ++i) {
-//        if (i % 4 == 0)
-//            std::cerr << '\n';
-//        std::cerr << p[i].first << ":" << p[i].second << ' ';
-//    }
-    constexpr auto f = makeFixedRows(fixings);
+    constexpr auto f1 = makeFixedCells(fixings);
 
     constexpr std::string_view board = "100089457738000000040010000004050906000000000000000728080001000007008095060090300";
     constexpr auto f2 = makeFixedCells<27>(board);
-    REQUIRE(f == f2);
 
-    for (const auto &e: f)
-        std::cerr << e << std::endl;
+    REQUIRE(f1 == f2);
+}
+
+TEST_CASE("Solve simple Sudoku") {
+
+    constexpr auto p = makeSudokuPositions<3>();
+    constexpr auto f = makeFixedCells<27>("100089457738000000040010000004050906000000000000000728080001000007008095060090300");
     auto sol = dlx::DLX<324, 729, 2916>::run<27>(p, f);
     print_solution<3>(*sol);
     //constexpr auto sol = runSudoku<27>(fixings);
