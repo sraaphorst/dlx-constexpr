@@ -119,7 +119,7 @@ namespace dlx {
             // Reverse the removal of the rows from coverColumn.
             for (index i = state.U[columnIdx]; i != columnIdx; i = state.U[i]) {
                 // Restore row i to the problem.
-                for (index j = state.L[i]; j != i; j = state.L[i]) {
+                for (index j = state.L[i]; j != i; j = state.L[j]) {
                     ++state.S[state.C[j]];
                     state.D[state.U[j]] = j;
                     state.U[state.D[j]] = j;
@@ -270,12 +270,12 @@ namespace dlx {
 
             // Choose the column with the smallest number of rows to minimize the branching factor.
             index minColumnIndex = state.R[header];
-            for (index i = state.R[minColumnIndex]; i != header; ++i)
+            for (index i = state.R[minColumnIndex]; i != header; i = state.R[i])
                 if (state.S[i] < state.S[minColumnIndex])
                     minColumnIndex = i;
 
             // If there ae no available rows to cover this column, we cannot extend.
-            if (state.S[minColumnIndex] == 0)
+            if (minColumnIndex == header || state.S[minColumnIndex] == 0)
                 return std::nullopt;
 
             // Cover the column.
@@ -283,10 +283,10 @@ namespace dlx {
 
             // Now extend the solution by trying each possible row in the column.
             for (index i = state.D[minColumnIndex]; i != minColumnIndex; i = state.D[i]) {
-                useRow(state, i, sol);
-//                sol[state.RM[i]] = true;
-//                for (index j = state.R[i]; j != i; j = state.R[j])
-//                    coverColumn(state, state.C[j]);
+                //useRow(state, i, sol);
+                sol[state.RM[i]] = true;
+                for (index j = state.R[i]; j != i; j = state.R[j])
+                    coverColumn(state, state.C[j]);
 
                 // Recurse and see if we can find a solution.
                 const auto soln = find_solution(state, sol);
@@ -294,11 +294,14 @@ namespace dlx {
                     return soln;
 
                 // Reverse the operation.
-                unuseRow(state, i, sol);
-//                sol[state.RM[i]] = false;
-//                for (index j = state.L[i]; j != i; j = state.L[j])
-//                    uncoverColumn(state, state.C[j]);
+//                unuseRow(state, i, sol);
+                sol[state.RM[i]] = false;
+                for (index j = state.L[i]; j != i; j = state.L[j])
+                    uncoverColumn(state, state.C[j]);
             }
+
+            // Uncover the column.
+            uncoverColumn(state, minColumnIndex);
 
             // If we reach this point, we could not find a row that leads to completion.
             return std::nullopt;
