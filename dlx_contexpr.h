@@ -95,7 +95,8 @@ namespace dlx {
          * @param state the DLX state
          * @param columnIdx the index of the column
          */
-        static constexpr void coverColumn(data &state, index columnIdx) {
+        template <typename Data>
+        static constexpr void coverColumn(Data &&state, index columnIdx) {
             assert(0 <= columnIdx && columnIdx < header);
 
             // Remove the column from the header.
@@ -125,7 +126,8 @@ namespace dlx {
          * @param state the DLX state
          * @param columnIdx the index of the column
          */
-        static constexpr void uncoverColumn(data &state, index columnIdx) {
+        template <typename Data>
+        static constexpr void uncoverColumn(Data &&state, index columnIdx) {
             assert(0 <= columnIdx && columnIdx < header);
 
             // Reverse the removal of the rows from coverColumn.
@@ -158,14 +160,15 @@ namespace dlx {
          * @param rowIdx the index of a node in the row
          * @param sol the solution
          */
-        static constexpr void useRow(data &state, index rowIdx, solution &sol) {
+        template <typename Data, typename Solution>
+        static constexpr void useRow(Data &&state, index rowIdx, Solution &&sol) {
             assert(rowIdx > header && rowIdx < HeaderSize + NumNodes);
             sol[state.RM[rowIdx]] = true;
 
             // Cover all the columns in the row.
             index i  = rowIdx;
             do {
-                coverColumn(state, state.C[i]);
+                coverColumn(std::forward<Data>(state), state.C[i]);
                 i = state.R[i];
                 //} while (i != initialIdx);
             } while (i != rowIdx);
@@ -183,14 +186,15 @@ namespace dlx {
          * @param rowIdx the index of a node in the row
          * @param sol the solution
          */
-        static constexpr void unuseRow(data &state, index rowIdx, solution &sol) {
+        template <typename Data, typename Solution>
+        static constexpr void unuseRow(Data &&state, index rowIdx, solution &&sol) {
             assert(rowIdx > header && rowIdx < HeaderSize + NumNodes);
             sol[state.RM[rowIdx]] = false;
 
             // Uncover all the columns in the row.
             index i = rowIdx;
             do {
-                uncoverColumn(state, state.C[i]);
+                uncoverColumn(std::forward<Data>(state), state.C[i]);
                 i = state.L[i];
             } while (i != rowIdx);
         }
@@ -209,7 +213,8 @@ namespace dlx {
          * @param sol an array representing the solution
          * @return a solution if one exists, and nullopt if not
          */
-        static constexpr std::optional<solution> find_solution(data &state, solution &sol) {
+        template <typename Data, typename Solution>
+        static constexpr std::optional<solution> find_solution(Data &&state, Solution &&sol) {
             // Check to see if we have a complete solution, i.e if the header only loops to itself.
             // We could modify this to make a callback for solutions and then iterate over them, but
             // I'm not sure how we would do this with constexpr.
@@ -227,45 +232,44 @@ namespace dlx {
                 return std::nullopt;
 
             // Cover the column.
-            coverColumn(state, minColumnIndex);
+            coverColumn(std::forward<Data>(state), minColumnIndex);
 
             // Now extend the solution by trying each possible row in the column.
             for (index i = state.D[minColumnIndex]; i != minColumnIndex; i = state.D[i]) {
-                useRow(state, i, sol);
-//                sol[state.RM[i]] = true;
-//                for (index j = state.R[i]; j != i; j = state.R[j])
-//                    coverColumn(state, state.C[j]);
+//                useRow(std::forward<Data>(state), i, std::forward<Solution>(sol));
+                sol[state.RM[i]] = true;
+                for (index j = state.R[i]; j != i; j = state.R[j])
+                    coverColumn(std::forward<Data>(state), state.C[j]);
 
                 // Recurse and see if we can find a solution.
-                const auto soln = find_solution(state, sol);
+                const auto soln = find_solution(std::forward<Data>(state), std::forward<Solution>(sol));
                 if (soln.has_value())
                     return soln;
 
                 // Reverse the operation.
-                unuseRow(state, i, sol);
-//                sol[state.RM[i]] = false;
-//                for (index j = state.L[i]; j != i; j = state.L[j])
-//                    uncoverColumn(state, state.C[j]);
+//                unuseRow(std::forward<Data>(state), i, std::forward<Solution>(sol));
+                sol[state.RM[i]] = false;
+                for (index j = state.L[i]; j != i; j = state.L[j])
+                    uncoverColumn(std::forward<Data>(state), state.C[j]);
             }
 
             // Uncover the column.
-            uncoverColumn(state, minColumnIndex);
+            uncoverColumn(std::forward<Data>(state), minColumnIndex);
 
             // If we reach this point, we could not find a row that leads to completion.
             return std::nullopt;
         }
 
-    public:
-        DLX() = delete;
+        template <typename Data>
+        static constexpr std::optional<solution> solve(Data &&state) {
+            // Initialize the solution.
+            solution sol{};
+            for (auto &s: sol)
+                s = false;
+            return find_solution(std::forward<data>(state), sol);
+        }
 
-        /**
-         * Given a set of "positions" of the form (r,c) indicating that element c is in subset r, run the
-         * exact cover problem using Knuth's dancing links algorithm.
-         *
-         * @param positions list of the positions describing the subsets
-         * @return the first solution found if one exists, or nullopt otherwise
-         */
-        static constexpr std::optional<solution> run(const position_array<NumNodes> &positions) {
+        static constexpr data init(const position_array<NumNodes> &positions) {
             data d{};
 
             // Create the header data.
@@ -326,12 +330,50 @@ namespace dlx {
 
                 rowIdx = rowEndIdx;
             }
+            return std::move(d);
+        }
 
-            // Initialize the solution.
+        static constexpr solution init_solution() {
             solution sol{};
             for (auto &s: sol)
                 s = false;
-            return find_solution(d, sol);
+            return std::move(sol);
+        }
+
+    public:
+        DLX() = delete;
+
+        /**
+         * Given a set of "positions" of the form (r,c) indicating that element c is in subset r, run the
+         * exact cover problem using Knuth's dancing links algorithm.
+         *
+         * @param positions list of the positions describing the subsets
+         * @return the first solution found if one exists, or nullopt otherwise
+         */
+        static constexpr std::optional<solution> run(const position_array<NumNodes> &positions) {
+            return find_solution(init(positions), init_solution());
+        }
+
+        /**
+         * Given a set of "positions" of the form (r,c) indicating that element c is in subset r,
+         * and a set of rows to force into the f inal solution, run the  exact cover problem using Knuth's
+         * dancing links algorithm.
+         *
+         * @param positions list of the positions describing the subsets
+         * @param fixed_rows a list of fixed rows
+         * @return the first solution found if one exists, or nullopt otherwise
+         */
+        template<size_t NumFixedRows>
+        static constexpr std::optional<solution> run(const position_array<NumNodes> &positions,
+                const std::array<size_t, NumFixedRows> &fixed_rows) {
+            auto state = init(positions);
+
+            // Initialize the solution.
+            auto sol = init_solution();
+
+            for (const auto row: fixed_rows)
+                useRow(state, row, sol);
+            return find_solution(state, sol);
         }
     };
 }

@@ -19,3 +19,4 @@ target_link_libraries(tests Catch)
 
 add_executable(TestSmallCover TestSmallCover.cpp ${TEST_SOURCES})
 add_executable(TestTDesign TestTDesign.cpp ${TEST_SOURCES})
+add_executable(TestSudoku TestSudoku.cpp ${TEST_SOURCES})
