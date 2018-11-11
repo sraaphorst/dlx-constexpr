@@ -147,6 +147,34 @@ namespace sudoku {
                 makeFixedRows<NumFixedRows, N>(fixed));
     }
 
+    // Need a constexpr toupper.
+    constexpr char cToUpper(char c) {
+        return (c >= 'a' && c <= 'Z') ? c - 'a' + 'A' : c;
+    }
+
+    /**
+     * Extract the board from the solution returned by DLX.
+     */
+    template<size_t N = 3,
+            auto rows = N * N,
+            auto cols = N * N,
+            auto digits = N * N,
+            auto NumRows = rows * cols * digits>
+    constexpr std::array<std::array<size_t, cols>, rows> extractBoard(std::array<bool, NumRows> &sol) {
+        std::array<std::array<size_t, cols>, rows> board;
+
+        for (int i = 0; i < NumRows; ++i) {
+            if (!sol[0]) continue;
+
+            size_t row = i / (N * N);
+            size_t col = (i % (N * N)) / N;
+            size_t digit = (i % (N * N)) % N;
+            board[row][col] = digit;
+        }
+
+        return board;
+    }
+
     template<size_t N = 3,
             size_t NumRows = N * N * N * N * N * N>
     void print_solution(const std::array<bool, NumRows> &sol) {
