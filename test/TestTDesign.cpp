@@ -13,8 +13,6 @@
 
 using namespace cmath;
 
-//template<size_t T, size_t V, size_t K>
-
 TEST_CASE("C(11, 4)") {
     constexpr auto f1 = nCr(11, 4);
     REQUIRE(f1 == 330);

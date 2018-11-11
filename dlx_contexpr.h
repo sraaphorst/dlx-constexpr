@@ -29,14 +29,29 @@ namespace dlx {
      * We represent the set of things to cover as the set {0, 1, ... N-1} for a given N.
      * It is the responsibility of the user to map these values to meaningful data with respect to their problem.
      *
+     * Note that the algorithm can be run entirely at compile time (but need not be),and only the first solution
+     * found is returned. It would be ideal if we could return all solutions found, but I cannot ascertain a way to
+     * do so in a constexpr setting. (We could, for example, allocate enough room for, say, 100 solutions and see
+     * how many the algorithm finds.)
+     *
+     * Note that DLX is uninstantiable and thus just a class of static methods. They could be separated, but we keep
+     * them so categorized so that the template sizes carry around, and also to enforce encapsulation, as there
+     * are certain methods the user should not call.
+     *
+     * There are a number of improvements that could be made: these will be documented as issues in github.
+     * 
      * @tparam NumCols the number of elements in the set to cover
      * @tparam NumRows the number of rows n the array of nodes
      * @tparam NumNodes the size of the array of nodes
      */
     template<size_t NumCols, size_t NumRows, size_t NumNodes>
-    struct DLX {
+    class DLX {
+    public:
+        /** OUTPUT **/
+        using solution = std::array<bool, NumRows>;
+
     private:
-        /** DATA TYPES **/
+        /** INTERNAL DATA TYPES **/
         static constexpr size_t dim = NumCols + 1 + NumNodes;
         using direction = std::array<index, dim>;
 
@@ -49,9 +64,6 @@ namespace dlx {
         // A mapping from nodes to rows.
         // The header counts as the NumRows-th row.
         using row_mapping = std::array<index, dim>;
-
-        /** OUTPUT **/
-        using solution = std::array<bool, NumRows>;
 
         /**
          * The internal state used to model the problem.
@@ -113,7 +125,7 @@ namespace dlx {
          * @param state the DLX state
          * @param columnIdx the index of the column
          */
-        static constexpr void uncoverColumn(data &state, int columnIdx) {
+        static constexpr void uncoverColumn(data &state, index columnIdx) {
             assert(0 <= columnIdx && columnIdx < header);
 
             // Reverse the removal of the rows from coverColumn.
@@ -183,7 +195,68 @@ namespace dlx {
             } while (i != rowIdx);
         }
 
+        /**
+         * Given a formulation produced by the run method, attempt to locate a solution to the exact cover
+         * problem using backtracking on the rows. The general strategy is:
+         * 1. If all columns are covered, solution found.
+         * 2. Otherwise pick the column with the least rows (to minimize branching factor).
+         * 3. Recurse over all possibilities of adding the rows covering thhe column to the answer.
+         *
+         * The algorithm manipulates the links between rows and columns as per Knuth's DLX paper to efficiently
+         * expand / backtrack.
+         *
+         * @param state the DLX state
+         * @param sol an array representing the solution
+         * @return a solution if one exists, and nullopt if not
+         */
+        static constexpr std::optional<solution> find_solution(data &state, solution &sol) {
+            // Check to see if we have a complete solution, i.e if the header only loops to itself.
+            // We could modify this to make a callback for solutions and then iterate over them, but
+            // I'm not sure how we would do this with constexpr.
+            if (state.R[header] == header)
+                return sol;
+
+            // Choose the column with the smallest number of rows to minimize the branching factor.
+            index minColumnIndex = state.R[header];
+            for (index i = state.R[minColumnIndex]; i != header; i = state.R[i])
+                if (state.S[i] < state.S[minColumnIndex])
+                    minColumnIndex = i;
+
+            // If there ae no available rows to cover this column, we cannot extend.
+            if (minColumnIndex == header || state.S[minColumnIndex] == 0)
+                return std::nullopt;
+
+            // Cover the column.
+            coverColumn(state, minColumnIndex);
+
+            // Now extend the solution by trying each possible row in the column.
+            for (index i = state.D[minColumnIndex]; i != minColumnIndex; i = state.D[i]) {
+                useRow(state, i, sol);
+//                sol[state.RM[i]] = true;
+//                for (index j = state.R[i]; j != i; j = state.R[j])
+//                    coverColumn(state, state.C[j]);
+
+                // Recurse and see if we can find a solution.
+                const auto soln = find_solution(state, sol);
+                if (soln.has_value())
+                    return soln;
+
+                // Reverse the operation.
+                unuseRow(state, i, sol);
+//                sol[state.RM[i]] = false;
+//                for (index j = state.L[i]; j != i; j = state.L[j])
+//                    uncoverColumn(state, state.C[j]);
+            }
+
+            // Uncover the column.
+            uncoverColumn(state, minColumnIndex);
+
+            // If we reach this point, we could not find a row that leads to completion.
+            return std::nullopt;
+        }
+
     public:
+        DLX() = delete;
 
         /**
          * Given a set of "positions" of the form (r,c) indicating that element c is in subset r, run the
@@ -259,52 +332,6 @@ namespace dlx {
             for (auto &s: sol)
                 s = false;
             return find_solution(d, sol);
-        }
-
-        static constexpr std::optional<solution> find_solution(data &state, solution &sol) {
-            // Check to see if we have a complete solution, i.e if the header only loops to itself.
-            // We could modify this to make a callback for solutions and then iterate over them, but
-            // I'm not sure how we would do this with constexpr.
-            if (state.R[header] == header)
-                return sol;
-
-            // Choose the column with the smallest number of rows to minimize the branching factor.
-            index minColumnIndex = state.R[header];
-            for (index i = state.R[minColumnIndex]; i != header; i = state.R[i])
-                if (state.S[i] < state.S[minColumnIndex])
-                    minColumnIndex = i;
-
-            // If there ae no available rows to cover this column, we cannot extend.
-            if (minColumnIndex == header || state.S[minColumnIndex] == 0)
-                return std::nullopt;
-
-            // Cover the column.
-            coverColumn(state, minColumnIndex);
-
-            // Now extend the solution by trying each possible row in the column.
-            for (index i = state.D[minColumnIndex]; i != minColumnIndex; i = state.D[i]) {
-                //useRow(state, i, sol);
-                sol[state.RM[i]] = true;
-                for (index j = state.R[i]; j != i; j = state.R[j])
-                    coverColumn(state, state.C[j]);
-
-                // Recurse and see if we can find a solution.
-                const auto soln = find_solution(state, sol);
-                if (soln.has_value())
-                    return soln;
-
-                // Reverse the operation.
-//                unuseRow(state, i, sol);
-                sol[state.RM[i]] = false;
-                for (index j = state.L[i]; j != i; j = state.L[j])
-                    uncoverColumn(state, state.C[j]);
-            }
-
-            // Uncover the column.
-            uncoverColumn(state, minColumnIndex);
-
-            // If we reach this point, we could not find a row that leads to completion.
-            return std::nullopt;
         }
     };
 }
