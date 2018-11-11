@@ -6,10 +6,8 @@
 
 #pragma once
 
-#include <algorithm>
 #include <array>
 #include <cassert>
-#include <iostream>
 #include <optional>
 #include <tuple>
 
@@ -187,7 +185,7 @@ namespace dlx {
          * @param sol the solution
          */
         template <typename Data, typename Solution>
-        static constexpr void unuseRow(Data &&state, index rowIdx, solution &&sol) {
+        static constexpr void unuseRow(Data &&state, index rowIdx, Solution &&sol) {
             assert(rowIdx > header && rowIdx < HeaderSize + NumNodes);
             sol[state.RM[rowIdx]] = false;
 
@@ -236,11 +234,13 @@ namespace dlx {
 
             // Now extend the solution by trying each possible row in the column.
             for (index i = state.D[minColumnIndex]; i != minColumnIndex; i = state.D[i]) {
+                // I feel like we should be able to use useRow / unuseRow in this for loop, but it doesn't seem to
+                // produce the correct answers in either this or my  Python implementation of DLX.
 //                useRow(std::forward<Data>(state), i, std::forward<Solution>(sol));
                 sol[state.RM[i]] = true;
                 for (index j = state.R[i]; j != i; j = state.R[j])
                     coverColumn(std::forward<Data>(state), state.C[j]);
-
+//
                 // Recurse and see if we can find a solution.
                 const auto soln = find_solution(std::forward<Data>(state), std::forward<Solution>(sol));
                 if (soln.has_value())
@@ -251,6 +251,7 @@ namespace dlx {
                 sol[state.RM[i]] = false;
                 for (index j = state.L[i]; j != i; j = state.L[j])
                     uncoverColumn(std::forward<Data>(state), state.C[j]);
+//
             }
 
             // Uncover the column.
@@ -260,15 +261,13 @@ namespace dlx {
             return std::nullopt;
         }
 
-        template <typename Data>
-        static constexpr std::optional<solution> solve(Data &&state) {
-            // Initialize the solution.
-            solution sol{};
-            for (auto &s: sol)
-                s = false;
-            return find_solution(std::forward<data>(state), sol);
-        }
-
+        /**
+         * Initialize the problem by taking the array of positions and populating the DLX array.
+         * These define the rows that comprise the subets for the exact cover.
+         *
+         * @param positions the positions that describe the subsets
+         * @return data object representing the DLX problem
+         */
         static constexpr data init(const position_array<NumNodes> &positions) {
             data d{};
 
@@ -333,6 +332,10 @@ namespace dlx {
             return std::move(d);
         }
 
+        /**
+         * Create the solution and initialize it.
+         * @return empty solution array
+         */
         static constexpr solution init_solution() {
             solution sol{};
             for (auto &s: sol)
