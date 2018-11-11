@@ -33,11 +33,16 @@ TEST_CASE("Test makeFixedCells functions") {
 }
 
 TEST_CASE("Solve simple Sudoku") {
-
     constexpr auto p = makeSudokuPositions<3>();
     constexpr auto f = makeFixedCells<27>("100089457738000000040010000004050906000000000000000728080001000007008095060090300");
-    auto sol = dlx::DLX<324, 729, 2916>::run<27>(p, f);
-    print_solution<3>(*sol);
-    //constexpr auto sol = runSudoku<27>(fixings);
+    constexpr auto sol = dlx::DLX<324, 729, 2916>::run<27>(p, f);
     REQUIRE(sol);
+    constexpr auto board = extractBoard<3>(*sol);
+    print_board<3>(board);
+}
+
+TEST_CASE("Solve extreme Sudoku") {
+    constexpr auto sol = runSudoku<21,3>("800000000003600000070090200050007000000045700000100030001000068008500010090000400");
+    REQUIRE(sol);
+    print_solution<3>(*sol);
 }

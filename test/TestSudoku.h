@@ -147,9 +147,21 @@ namespace sudoku {
                 makeFixedCells<NumFixedRows, N>(fixed));
     }
 
+    template<size_t NumFixedRows, size_t N = 3,
+            auto rows = N * N,
+            auto cols = N * N,
+            auto digits = N * N,
+            auto totalCols = 4 * (N * N * N * N),
+            auto arrayRows = rows * cols * digits,
+            auto arrayNodes = 4 * arrayRows>
+    constexpr std::optional<std::array<bool, arrayRows>> runSudoku(const std::string_view &sv) {
+        return dlx::DLX<totalCols, arrayRows, arrayNodes>::run(makeSudokuPositions<N>(),
+                                                               makeFixedCells<NumFixedRows, N>(sv));
+    }
+
     // Need a constexpr toupper.
     constexpr char cToUpper(char c) {
-        return (c >= 'a' && c <= 'Z') ? c - 'a' + 'A' : c;
+        return (c >= 'a' && c <= 'z') ? c - 'a' + 'A' : c;
     }
 
     /**
@@ -160,15 +172,16 @@ namespace sudoku {
             auto cols = N * N,
             auto digits = N * N,
             auto NumRows = rows * cols * digits>
-    constexpr std::array<std::array<size_t, cols>, rows> extractBoard(std::array<bool, NumRows> &sol) {
-        std::array<std::array<size_t, cols>, rows> board;
+    constexpr std::array<std::array<size_t, cols>, rows> extractBoard(const std::array<bool, NumRows> &sol) {
+        std::array<std::array<size_t, cols>, rows> board{};
 
-        for (int i = 0; i < NumRows; ++i) {
-            if (!sol[0]) continue;
+        for (size_t i = 0; i < NumRows; ++i) {
+            if (!sol[i]) continue;
 
-            size_t row = i / (N * N);
-            size_t col = (i % (N * N)) / N;
-            size_t digit = (i % (N * N)) % N;
+            // We need to shift the digits from [0,8] to [1,9].
+            size_t row = i / (rows * cols);
+            size_t col = (i % (rows * cols)) / digits;
+            size_t digit = (i % (rows * cols)) % digits + 1;
             board[row][col] = digit;
         }
 
@@ -176,14 +189,25 @@ namespace sudoku {
     }
 
     template<size_t N = 3,
-            size_t NumRows = N * N * N * N * N * N>
-    void print_solution(const std::array<bool, NumRows> &sol) {
-        // We need to fish out the information.
-        int ct = 0;
-        for (const auto &s: sol) {
-            std::cerr << s << ' ';
-            if (s) ++ct;
+            auto rows = N * N,
+            auto cols = N * N,
+            auto digits = N * N,
+            auto NumRows = rows * cols * digits>
+    void print_board(const std::array<std::array<size_t, cols>, rows> &board) {
+        for (size_t i = 0; i < N * N; ++i) {
+            for (size_t j = 0; j < N * N; ++j)
+                std::clog << board[i][j] << ' ';
+            std::clog << '\n';
         }
-        std::cerr << "\nNum rows: " << ct << '\n';
+        std::flush(std::clog);
+    }
+
+    template<size_t N = 3,
+            auto rows = N * N,
+            auto cols = N * N,
+            auto digits = N * N,
+            auto NumRows = rows * cols * digits>
+    void print_solution(const std::array<bool, NumRows> &sol) {
+        print_board<N>(extractBoard<N>(sol));
     }
 }
