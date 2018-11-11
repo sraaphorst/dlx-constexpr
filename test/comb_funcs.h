@@ -11,7 +11,7 @@
 #include <cstddef>
 
 namespace cmath {
-    using factype = long long;
+    using factype = size_t;
 
     constexpr factype nCr(factype n, factype r) {
         if (n < r)
@@ -80,3 +80,4 @@ namespace cmath {
         return kset;
     }
 }
+
