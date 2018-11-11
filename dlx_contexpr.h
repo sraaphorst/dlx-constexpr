@@ -45,7 +45,7 @@ namespace dlx {
      * @tparam NumNodes the size of the array of nodes
      */
     template<size_t NumCols, size_t NumRows, size_t NumNodes>
-    class DLX {
+    class DLX final {
     public:
         /** OUTPUT **/
         using solution = std::array<bool, NumRows>;
@@ -162,7 +162,8 @@ namespace dlx {
          */
         template <typename Data, typename Solution>
         static constexpr void useRow(Data &&state, index rowIdx, Solution &&sol) {
-            //assert(rowIdx > header && rowIdx < HeaderSize + NumNodes);
+            assert(rowIdx > header && rowIdx < HeaderSize + NumNodes);
+            std::cerr << "Setting " << state.RM[rowIdx] << " to TRUE\n";
             sol[state.RM[rowIdx]] = true;
 
             // Cover all the columns in the row.
@@ -188,8 +189,9 @@ namespace dlx {
          */
         template <typename Data, typename Solution>
         static constexpr void unuseRow(Data &&state, index rowIdx, solution &&sol) {
-            //assert(rowIdx > header && rowIdx < HeaderSize + NumNodes);
+            assert(rowIdx > header && rowIdx < HeaderSize + NumNodes);
             sol[state.RM[rowIdx]] = false;
+            std::cerr << "Unsetting " << state.RM[rowIdx] << " to FALSE\n";
 
             // Uncover all the columns in the row.
             index i = rowIdx;
@@ -238,6 +240,7 @@ namespace dlx {
             for (index i = state.D[minColumnIndex]; i != minColumnIndex; i = state.D[i]) {
 //                useRow(std::forward<Data>(state), i, std::forward<Solution>(sol));
                 sol[state.RM[i]] = true;
+                std::cerr << "- Setting " << state.RM[i] << " to TRUE\n";
                 for (index j = state.R[i]; j != i; j = state.R[j])
                     coverColumn(std::forward<Data>(state), state.C[j]);
 
@@ -249,6 +252,7 @@ namespace dlx {
                 // Reverse the operation.
 //                unuseRow(std::forward<Data>(state), i, std::forward<Solution>(sol));
                 sol[state.RM[i]] = false;
+                std::cerr << "- Setting " << state.RM[i] << " to FALSE\n";
                 for (index j = state.L[i]; j != i; j = state.L[j])
                     uncoverColumn(std::forward<Data>(state), state.C[j]);
             }
@@ -356,11 +360,11 @@ namespace dlx {
 
         /**
          * Given a set of "positions" of the form (r,c) indicating that element c is in subset r,
-         * and a set of rows to force into the f inal solution, run the  exact cover problem using Knuth's
+         * and a set of rows to force into the final solution, run the  exact cover problem using Knuth's
          * dancing links algorithm.
          *
          * @param positions list of the positions describing the subsets
-         * @param fixed_rows a list of fixed rows
+         * @param fixed_rows a list of fixed rows (not offset by the header)
          * @return the first solution found if one exists, or nullopt otherwise
          */
         template<size_t NumFixedRows>
@@ -372,7 +376,7 @@ namespace dlx {
             auto sol = init_solution();
 
             for (const auto row: fixed_rows)
-                useRow(state, row, sol);
+                useRow(state, row + HeaderSize, sol);
             return find_solution(state, sol);
         }
     };

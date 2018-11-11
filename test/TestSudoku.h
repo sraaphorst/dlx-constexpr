@@ -8,6 +8,7 @@
 
 #include <array>
 #include <cstddef>
+#include <string_view>
 #include <tuple>
 
 #include <dlx_contexpr.h>
@@ -48,17 +49,15 @@ namespace sudoku {
         std::array<std::array<dlx_col_idx, digits>, rows> rowIndices{};
         for (dlx_col_idx i = 0; i < rows; ++i)
             for (dlx_col_idx n = 0; n < digits; ++n)
-                rowIndices[i][n] = i * rows + digits + offset;
+                rowIndices[i][n] = i * rows + n + offset;
         offset += rows * digits;
-        std::cerr << "offset1=" << offset << '\n';
 
         // 2. Columns
         std::array<std::array<dlx_col_idx, digits>, cols> colIndices{};
         for (dlx_col_idx j = 0; j < cols; ++j)
             for (dlx_col_idx n = 0; n < digits; ++n)
-                rowIndices[j][n] = j * cols + digits + offset;
+                colIndices[j][n] = j * cols + n + offset;
         offset += cols * digits;
-        std::cerr << "offset2=" << offset << '\n';
 
         // 3. Grids. We could work out a formula here but it's just easier to increment since
         // the array has five dimensions.
@@ -69,7 +68,6 @@ namespace sudoku {
                 for (dlx_col_idx n = 0; n < digits; ++n)
                     gridIndices[x][y][n] = position++ + offset;
         offset += position;
-        std::cerr << "offset4=" << offset << '\n';
 
         // 4. Cell occupancy.
         std::array<std::array<dlx_col_idx, cols>, rows> occupancy{};
@@ -77,7 +75,6 @@ namespace sudoku {
             for (dlx_col_idx j = 0; j < cols; ++j)
                 occupancy[i][j] = i * rows + j + offset;
         offset += rows * cols;
-        std::cerr << "offset5=" << offset << '\n';
 
         // Now we populate the position array, by creating N^6 rows trying every digit in
         // every row and every column.
@@ -115,7 +112,7 @@ namespace sudoku {
         // For each col, there are digit entries.
         // Thus, assignment is essentially a number written base N^2 that we convert to decimal.
         // We want a node index in the row, however, so multiply by 4.
-        return headerSize + 4 * (row * cols * digits + col * digits + digit - 1);
+        return 4 * (row * cols * digits + col * digits + digit - 1);
     }
 
     template<size_t NumFixedRows, size_t N = 3>
@@ -124,6 +121,18 @@ namespace sudoku {
         for (size_t i = 0; i < NumFixedRows; ++i)
             rows[i] = toRow<N>(fixed[i]);
         return std::move(rows);
+    }
+
+    template<size_t NumFixedCells, size_t N = 3>
+    constexpr std::array<size_t, NumFixedCells> makeFixedCells(const std::string_view &sv) {
+        std::array<size_t, NumFixedCells> rows{};
+        int pos = 0;
+        for (size_t i = 0; i < 81; ++i) {
+            if (sv[i] == '0')
+                continue;
+            rows[pos++] = toRow<N>({i / 9, i % 9, sv[i] - '0'});
+        }
+        return rows;
     }
 
     template<size_t NumFixedRows, size_t N = 3,
@@ -136,5 +145,17 @@ namespace sudoku {
     constexpr std::optional<std::array<bool, arrayRows>> runSudoku(const fixing_array<NumFixedRows> &fixed) {
         return dlx::DLX<totalCols, arrayRows, arrayNodes>::run(makeSudokuPositions<N>(),
                 makeFixedRows<NumFixedRows, N>(fixed));
+    }
+
+    template<size_t N = 3,
+            size_t NumRows = N * N * N * N * N * N>
+    void print_solution(const std::array<bool, NumRows> &sol) {
+        // We need to fish out the information.
+        int ct = 0;
+        for (const auto &s: sol) {
+            std::cerr << s << ' ';
+            if (s) ++ct;
+        }
+        std::cerr << "\nNum rows: " << ct << '\n';
     }
 }
