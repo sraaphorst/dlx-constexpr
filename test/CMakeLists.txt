@@ -17,4 +17,5 @@ set(TEST_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp)
 add_executable(tests ${TEST_SOURCES})
 target_link_libraries(tests Catch)
 
-add_executable(TestSmallCover TestSmallCover.cpp ${TEST_SOURCES} main.cpp)
+add_executable(TestSmallCover TestSmallCover.cpp ${TEST_SOURCES})
+add_executable(TestTDesign TestTDesign.cpp ${TEST_SOURCES})

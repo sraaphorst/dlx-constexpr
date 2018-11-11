@@ -4,6 +4,8 @@
  * By Sebastian Raaphorst, 2018.
  */
 
+#pragma once
+
 #include <algorithm>
 #include <array>
 #include <cassert>
