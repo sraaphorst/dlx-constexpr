@@ -80,6 +80,7 @@ constexpr dlx::position_array<nodes> makeDesignPositions() {
     int node = 0;
     for (int row = 0; row < rows; ++row) {
         const auto kset = unrankKSubset<v, k>(row);
+
         for (int col = 0; col < nodes_per_row; ++col) {
             const auto tsetIdx = unrankKSubset<k, t>(col);
 
@@ -87,7 +88,7 @@ constexpr dlx::position_array<nodes> makeDesignPositions() {
             std::array<factype, t> tset{};
             for (int i = 0; i < t; ++i)
                 tset[i] = kset[tsetIdx[i]];
-            const auto tsetRk = rankKSubset<k, t>(tset);
+            const auto tsetRk = rankKSubset<v, t>(tset);
 
             // Now we add a node, namely (row, tsetRk).
             // In order to mark this methhod constexpr, we need to assign to first and second individually.
@@ -112,6 +113,15 @@ TEST_CASE("STS(7)") {
 
     // And solve, all constexpr!
     constexpr auto solution = dlx::DLX<cols, rows, nodes>::run(positions);
-
     REQUIRE(solution.has_value());
+
+    // Print the solution.
+    for (int i = 0; i < rows; ++i)
+        if ((*solution)[i]) {
+            auto kset = unrankKSubset<v, k>(i);
+            for (const auto &k: kset)
+                std::clog << k << ' ';
+            std::clog << '\n';
+        }
+    std::flush(std::clog);
 }
