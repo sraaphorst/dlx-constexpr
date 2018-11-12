@@ -18,6 +18,12 @@
 namespace cmath {
     using factype = unsigned long long;
 
+    /**
+     * Binomial coefficient.
+     * @param n
+     * @param r
+     * @return (n choose r)
+     */
     constexpr factype nCr(factype n, factype r) {
         if (n < r)
             return 0;
@@ -32,13 +38,13 @@ namespace cmath {
         return f;
     }
 
-    template<factype N, factype K>
-    constexpr factype cpow() {
-        if constexpr(K == 0)
-            return 1;
-        return N * cpow<N, K-1>();
-    }
-
+    /**
+     * Given a k-subset of the v-set [v], find its rank in lexicographical order.
+     * @tparam v the size of the base set
+     * @tparam k the size of the subset
+     * @param k-set the k-set to rank
+     * @return the rank of k-set
+     */
     template<factype v, factype k>
     constexpr factype rankKSubset(const std::array<factype, k> &kset) {
         factype r = nCr(v, k);
@@ -47,7 +53,13 @@ namespace cmath {
         return r - 1;
     }
 
-
+    /**
+     * Given a valid rank, i.e. 0 <= rk < nCr(v k), find the k-set it counts in lexicographical order.
+     * @tparam v the size of the base set
+     * @tparam k the size of the subset
+     * @param rank the rank of the k-set
+     * @return the k-set
+     */
     template<factype v, factype k>
     constexpr std::array<factype, k> unrankKSubset(factype rank) {
         std::array<factype, k> kset{};
@@ -71,6 +83,15 @@ namespace cmath {
         return std::move(kset);
     }
 
+    /**
+     * Given a k-set as a subset of the v-set [v], return its successor, if one exists.
+     * (If not, the behaviour is undefined.)
+     *
+     * @tparam v the size of the base set
+     * @tparam k the size of the subset
+     * @param kset the k-set whose successor we want
+     * @return the k-set that is the successor of kset under lexicographical ordering
+     */
     template<factype v, factype k>
     constexpr std::array<factype, k> succKSubset(std::array<factype, k> kset) {
         for (factype i = k-1; i >= 0; --i) {
@@ -128,20 +149,36 @@ namespace cmath {
         return std::move(array);
     }
 
+    /**
+     * A convenience method to run DLX for a t-design and return the solution.
+     * @tparam v v parameter
+     * @tparam k k parameter
+     * @tparam t t parameter
+     * @return the solution as an optional
+     */
     template<size_t v, size_t k, size_t t,
-            auto cols = nCr(v, t),
-            auto rows = nCr(v, k),
-            auto nodes_per_row = nCr(k, t),
-            auto nodes = rows * nodes_per_row>
+            const auto cols = nCr(v, t),
+            const auto rows = nCr(v, k),
+            const auto nodes_per_row = nCr(k, t),
+            const auto nodes = rows * nodes_per_row>
     constexpr std::optional<std::array<bool, rows>> run_t_design() {
         // Solve, all constexpr!
         return dlx::DLX<cols, rows, nodes>::run(makeDesignPositions<v, k, t>());
     }
 
-    template<size_t v, size_t k, size_t t,
-            auto rows = nCr(v, k)>
+    /**
+     * A convenience method to print a solution for a t-design problem.
+     * Note that t is unnecessary for printing.
+     *
+     * @tparam v v parameter
+     * @tparam k k parameter
+     * @param solution the solution returned by DLX
+     */
+    template<size_t v,
+            size_t k,
+            const auto rows = nCr(v, k)>
     void print_solution(const std::optional<std::array<bool, rows>> &solution) {
-        for (int i = 0; i < rows; ++i)
+        for (factype i = 0; i < rows; ++i)
             if ((*solution)[i]) {
                 auto kset = unrankKSubset<v, k>(i);
                 for (const auto &e: kset)
@@ -151,4 +188,3 @@ namespace cmath {
         std::flush(std::clog);
     }
 }
-

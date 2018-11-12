@@ -56,11 +56,10 @@ TEST_CASE("Successor of 1-sets of [10]") {
     }
 }
 
-
 TEST_CASE("STS(7)") {
     constexpr auto solution = cmath::run_t_design<7, 3, 2>();
     REQUIRE(solution);
-    cmath::print_solution<7, 3, 2>(solution);
+    cmath::print_solution<7, 3>(solution);
 }
 
 TEST_CASE("STS(15)") {
