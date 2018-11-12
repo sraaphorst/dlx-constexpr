@@ -20,7 +20,7 @@ C++14/17 programming in general - and `constexpr` / template-metaprogramming in 
 
 The entire library is small and based on a single header, namely `dlx_constexpr.h`:
 
-![header](dlx_constexpr.h)
+https://github.com/sraaphorst/dlx_constexpr/blob/master/dlx_contexpr.h
 
 Simply drag this wherever you with is your source code tree, formulate your problem as an exact cover problem, and you're good to go. There are no dependencies or prerequisites apart from C++17. It may or may not work with your compiler: I have found that GCC is much more flexible with regards to `constexpr`, and clang far less so. This was tested with GCC 8.0, where it works perfectly; it produces errors in `constexpr` mode with clang 6.0.1.
 
@@ -28,7 +28,7 @@ Simply drag this wherever you with is your source code tree, formulate your prob
 
 The rest of the code in this project comprises examples to show how easy it is to use `dlx_constexpr`, by modeling problems as Catch2 test cases, which you can see in the `test` folder:
 
-![tests](test)
+https://github.com/sraaphorst/dlx_constexpr/tree/master/test
 
 I looked at two problems in particular that lend themselves well to being solved by exact cover and DLX:
 
