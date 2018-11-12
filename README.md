@@ -10,7 +10,7 @@ This is a technique that is commonly and efficiently used to solve exact cover p
 
 https://en.wikipedia.org/wiki/Exact_cover
 
-Sudoku boards can be modeled as exact cover problems, and thus, DLX has become one of the main techniques to solve Sudoku boards, as it takes fractions of a megasecond, even for the most difficult of boards.
+In particular, **Sudoku boards** can be modeled as exact cover problems, and thus, DLX has become one of the main techniques to solve Sudoku boards, as it takes fractions of a megasecond, even for the most difficult of boards.
 
 C++14 / 17 programming in general - and `constexpr` / template-metaprogramming in particular - are two things that I find incredibly fascinating: hence my realization of this `constexpr` implementation of DLX over the course of a weekend.
 
