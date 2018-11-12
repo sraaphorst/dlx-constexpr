@@ -8,6 +8,7 @@
 
 #include <array>
 #include <cstddef>
+#include <iostream>
 #include <string_view>
 #include <tuple>
 
@@ -17,8 +18,21 @@ namespace sudoku {
     /// A fixing on a Sudoku board, for cell (i, j) of digit k.
     using fixing = std::tuple<size_t, size_t, size_t>;
 
+    /// An array of fixings.
     template<size_t FixedRows>
     using fixing_array = std::array<fixing, FixedRows>;
+
+    /// The product of taking fixings / a stringview and running it through makeFixedCells.
+    template<size_t NumFixedRows>
+    using fixed_rows = std::array<size_t, NumFixedRows>;
+
+    /// A solution to a Sudoku problem. Yes, we want N^6, as there are N^6 rows in the problem.
+    template<size_t N=3>
+    using solution = std::array<bool, N * N * N * N * N * N>;
+
+    /// The solution extracted to a grid / board.
+    template<size_t N=3>
+    using board = std::array<std::array<size_t, N * N>, N * N>;
 
     /**
      * Create a formulation of a generic (N^2 by N^2) Sudoku board with entries from 1 to N^2.
@@ -74,7 +88,6 @@ namespace sudoku {
         for (dlx_col_idx i = 0; i < rows; ++i)
             for (dlx_col_idx j = 0; j < cols; ++j)
                 occupancy[i][j] = i * rows + j + offset;
-        offset += rows * cols;
 
         // Now we populate the position array, by creating N^6 rows trying every digit in
         // every row and every column.
@@ -101,10 +114,17 @@ namespace sudoku {
         return std::move(array);
     }
 
+    /**
+     * Giving a single fixing assignment of the form of a triple (i, j, d) where d is the digit fixed at
+     * row i, column j, this transforms it into a form usable by DLX.
+     *
+     * @tparam N the size parameter of the Sudoku
+     * @param assignment the fixing
+     * @return an index usable by DLX
+     */
     template<size_t N = 3,
-            auto cols = N * N,
-            auto digits = N * N,
-            auto headerSize = 4 * (N * N * N * N) + 1>
+            const auto cols = N * N,
+            const auto digits = N * N>
     constexpr size_t toRow(const fixing &assignment) {
         const auto [row, col, digit] = assignment;
 
@@ -115,6 +135,14 @@ namespace sudoku {
         return 4 * (row * cols * digits + col * digits + digit - 1);
     }
 
+    /**
+     * Giving a fixing array, transform it using toRow to a format usable by DLX.
+     *
+     * @tparam NumFixedRows the number of fixings in fixed: these should all have unique row and column
+     * @tparam N the size parameter of the Sudoku
+     * @param fixed the fixing array
+     * @return an array usable by DLX
+     */
     template<size_t NumFixedRows, size_t N = 3>
     constexpr std::array<size_t, NumFixedRows> makeFixedCells(const fixing_array <NumFixedRows> &fixed) {
         std::array<size_t, NumFixedRows> rows{};
@@ -123,91 +151,140 @@ namespace sudoku {
         return std::move(rows);
     }
 
-    template<size_t NumFixedCells, size_t N = 3>
-    constexpr std::array<size_t, NumFixedCells> makeFixedCells(const std::string_view &sv) {
-        std::array<size_t, NumFixedCells> rows{};
-        int pos = 0;
-        for (size_t i = 0; i < 81; ++i) {
-            if (sv[i] == '0')
-                continue;
-            rows[pos++] = toRow<N>({i / 9, i % 9, sv[i] - '0'});
-        }
-        return rows;
-    }
-
-    template<size_t NumFixedRows, size_t N = 3,
-            auto rows = N * N,
-            auto cols = N * N,
-            auto digits = N * N,
-            auto totalCols = 4 * (N * N * N * N),
-            auto arrayRows = rows * cols * digits,
-            auto arrayNodes = 4 * arrayRows>
-    constexpr std::optional<std::array<bool, arrayRows>> runSudoku(const fixing_array<NumFixedRows> &fixed) {
-        return dlx::DLX<totalCols, arrayRows, arrayNodes>::run(makeSudokuPositions<N>(),
-                makeFixedCells<NumFixedRows, N>(fixed));
-    }
-
-    template<size_t NumFixedRows, size_t N = 3,
-            auto rows = N * N,
-            auto cols = N * N,
-            auto digits = N * N,
-            auto totalCols = 4 * (N * N * N * N),
-            auto arrayRows = rows * cols * digits,
-            auto arrayNodes = 4 * arrayRows>
-    constexpr std::optional<std::array<bool, arrayRows>> runSudoku(const std::string_view &sv) {
-        return dlx::DLX<totalCols, arrayRows, arrayNodes>::run(makeSudokuPositions<N>(),
-                                                               makeFixedCells<NumFixedRows, N>(sv));
-    }
-
-    // Need a constexpr toupper.
-    constexpr char cToUpper(char c) {
+    /**
+     * A constexpr version of toupper for use with the string_view version of makeFixedCells.
+     * @param c the char
+     * @return uppercase version of the char
+     */
+    constexpr auto cToUpper(char c) {
         return (c >= 'a' && c <= 'z') ? c - 'a' + 'A' : c;
     }
 
     /**
-     * Extract the board from the solution returned by DLX.
+     * Given an N^4 representation of the Sudoku problem as a string_view, where 0 indicates an unfixed cell,
+     * this function parses and creates the fixed rows to be usd by DLX.
+     *
+     * @tparam NumFixedRows the number of non-zero entries in sv
+     * @tparam N the size parameter of the Sudoku
+     * @param sv a string_view representing the partial game, with 0s for unfixed cells
+     * @return an array usable by DLX
+     */
+    template<size_t NumFixedRows, size_t N = 3>
+    constexpr fixed_rows<NumFixedRows> makeFixedCells(const std::string_view &sv) {
+        fixed_rows<NumFixedRows> rows{};
+        int pos = 0;
+        for (size_t i = 0; i < 81; ++i) {
+            if (sv[i] == '0')
+                continue;
+
+            // We allow values > 9 using alphabetical representation.
+            // For example A = 10, B = 11, C = 12.
+            const auto c = static_cast<size_t>(cToUpper(sv[i]));
+            const auto val = (c >= 'A' && c <= 'Z') ? c + 10 - 'A' : c - '0';
+            rows[pos++] = toRow<N>({i / 9, i % 9, val});
+        }
+        return rows;
+    }
+
+    /**
+     * A convenience method to invoke the DLX solver for Sudoku, since the parameters to pass are quite
+     * involved. This takes a representation of a partial Suroku (in this case, a set of triples (i, j, d) which
+     * state that digit d occurs in position row i, column j).
+     *
+     * It then returns a solution, if one exists.
+     *
+     * @tparam NumFixedRows the number of fixed entries in sv
+     * @tparam N the size parameter of the Sudoku
+     * @param sv a string_view representing the partial game, with 0s for unfixed cells
+     * @return
+     */
+    template<size_t NumFixedRows, size_t N = 3,
+            const auto rows = N * N,
+            const auto cols = N * N,
+            const auto digits = N * N,
+            const auto totalCols = 4 * (N * N * N * N),
+            const auto arrayRows = rows * cols * digits,
+            const auto arrayNodes = 4 * arrayRows>
+    constexpr std::optional<solution<N>> runSudoku(const fixing_array<NumFixedRows> &fixed) {
+        return dlx::DLX<totalCols, arrayRows, arrayNodes>::run(makeSudokuPositions<N>(),
+                makeFixedCells<NumFixedRows, N>(fixed));
+    }
+
+    /**
+     * A convenience method to invoke the DLX solver for Sudoku, since the parameters to pass are quite
+     * involved. This takes a representation of a partial Suroku (in this case, a string of N^4 valid characters
+     * in length), parses it, and then formulates the problem and returns a solution, if one exists.
+     *
+     * @tparam NumFixedRows the number of fixed entries in sv
+     * @tparam N the size parameter of the Sudoku
+     * @param sv a string_view representing the partial game, with 0s for unfixed cells
+     * @return
+     */
+    template<size_t NumFixedRows, size_t N = 3,
+            const auto rows = N * N,
+            const auto cols = N * N,
+            const auto digits = N * N,
+            const auto totalCols = 4 * (N * N * N * N),
+            const auto arrayRows = rows * cols * digits,
+            const auto arrayNodes = 4 * arrayRows>
+    constexpr std::optional<solution<N>> runSudoku(const std::string_view &sv) {
+        return dlx::DLX<totalCols, arrayRows, arrayNodes>::run(makeSudokuPositions<N>(),
+                                                               makeFixedCells<NumFixedRows, N>(sv));
+    }
+
+    /**
+     * Extract the solution as a grid / board from the solution provided by DLX.
+     *
+     * The template sizes represent side, num rows, and extractors.
+     *
+     * @tparam N the size parameter of the Sudoku
+     * @param sol a solution returned by DLX
+     * @return a boatd
      */
     template<size_t N = 3,
-            auto rows = N * N,
-            auto cols = N * N,
-            auto digits = N * N,
-            auto NumRows = rows * cols * digits>
-    constexpr std::array<std::array<size_t, cols>, rows> extractBoard(const std::array<bool, NumRows> &sol) {
-        std::array<std::array<size_t, cols>, rows> board{};
+            const auto side = N * N,
+            const auto N4 = side * side,
+            const auto N6 = side * N4>
+    constexpr board<N> extractBoard(const solution<N> &sol) {
+        board<N> b{};
 
-        for (size_t i = 0; i < NumRows; ++i) {
+        // Yes, N^6.
+        for (size_t i = 0; i < N6; ++i) {
             if (!sol[i]) continue;
 
             // We need to shift the digits from [0,8] to [1,9].
-            size_t row = i / (rows * cols);
-            size_t col = (i % (rows * cols)) / digits;
-            size_t digit = (i % (rows * cols)) % digits + 1;
-            board[row][col] = digit;
+            size_t row = i / N4;
+            size_t col = (i % N4) / side;
+            size_t digit = (i % N4) % side + 1;
+            b[row][col] = digit;
         }
 
-        return board;
+        return b;
     }
 
+    /**
+     * Display the Sudoku grid to clog.
+     * @tparam N the size parameter of the Sudoku
+     * @param b the Sudoku board / grid
+     */
     template<size_t N = 3,
-            auto rows = N * N,
-            auto cols = N * N,
-            auto digits = N * N,
-            auto NumRows = rows * cols * digits>
-    void print_board(const std::array<std::array<size_t, cols>, rows> &board) {
-        for (size_t i = 0; i < N * N; ++i) {
-            for (size_t j = 0; j < N * N; ++j)
-                std::clog << board[i][j] << ' ';
+            const auto side = N * N>
+    void print_board(const board<N> &b) {
+        for (size_t i = 0; i < side; ++i) {
+            for (size_t j = 0; j < side; ++j)
+                std::clog << b[i][j] << ' ';
             std::clog << '\n';
         }
         std::flush(std::clog);
     }
 
-    template<size_t N = 3,
-            auto rows = N * N,
-            auto cols = N * N,
-            auto digits = N * N,
-            auto NumRows = rows * cols * digits>
-    void print_solution(const std::array<bool, NumRows> &sol) {
+    /**
+     * Extract the solution into a board and print it in one step.
+     * @tparam N thhe size parameter of the Sudoku
+     * @param sol a solution returned by DLX
+     */
+    template<size_t N = 3>
+    void print_solution(const solution<N> &sol) {
         print_board<N>(extractBoard<N>(sol));
     }
 }
