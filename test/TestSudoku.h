@@ -53,7 +53,7 @@ namespace sudoku {
             auto cols = N * N,
             auto digits = N * N,
             auto nodes = 4 * rows * cols * digits>
-    constexpr dlx::position_array<nodes> makeSudokuPositions() {
+    constexpr dlx::position_array<nodes> makeSudokuPositions() noexcept {
         using dlx_col_idx = int;
 
         // Determine the starting position for each of the four category classes above.
@@ -125,7 +125,7 @@ namespace sudoku {
     template<size_t N = 3,
             const auto cols = N * N,
             const auto digits = N * N>
-    constexpr size_t toRow(const fixing &assignment) {
+    constexpr size_t toRow(const fixing &assignment) noexcept {
         const auto [row, col, digit] = assignment;
 
         // For each row, there are col * digit entries.
@@ -144,7 +144,7 @@ namespace sudoku {
      * @return an array usable by DLX
      */
     template<size_t NumFixedRows, size_t N = 3>
-    constexpr std::array<size_t, NumFixedRows> makeFixedCells(const fixing_array <NumFixedRows> &fixed) {
+    constexpr std::array<size_t, NumFixedRows> makeFixedCells(const fixing_array <NumFixedRows> &fixed) noexcept {
         std::array<size_t, NumFixedRows> rows{};
         for (size_t i = 0; i < NumFixedRows; ++i)
             rows[i] = toRow<N>(fixed[i]);
@@ -156,7 +156,7 @@ namespace sudoku {
      * @param c the char
      * @return uppercase version of the char
      */
-    constexpr auto cToUpper(char c) {
+    constexpr auto cToUpper(char c) noexcept {
         return (c >= 'a' && c <= 'z') ? c - 'a' + 'A' : c;
     }
 
@@ -170,7 +170,7 @@ namespace sudoku {
      * @return an array usable by DLX
      */
     template<size_t NumFixedRows, size_t N = 3>
-    constexpr fixed_rows<NumFixedRows> makeFixedCells(const std::string_view &sv) {
+    constexpr fixed_rows<NumFixedRows> makeFixedCells(const std::string_view &sv) noexcept {
         fixed_rows<NumFixedRows> rows{};
         int pos = 0;
         for (size_t i = 0; i < 81; ++i) {
@@ -205,7 +205,7 @@ namespace sudoku {
             const auto totalCols = 4 * (N * N * N * N),
             const auto arrayRows = rows * cols * digits,
             const auto arrayNodes = 4 * arrayRows>
-    constexpr std::optional<solution<N>> runSudoku(const fixing_array<NumFixedRows> &fixed) {
+    constexpr std::optional<solution<N>> runSudoku(const fixing_array<NumFixedRows> &fixed) noexcept {
         return dlx::DLX<totalCols, arrayRows, arrayNodes>::run(makeSudokuPositions<N>(),
                 makeFixedCells<NumFixedRows, N>(fixed));
     }
@@ -218,7 +218,7 @@ namespace sudoku {
      * @tparam NumFixedRows the number of fixed entries in sv
      * @tparam N the size parameter of the Sudoku
      * @param sv a string_view representing the partial game, with 0s for unfixed cells
-     * @return
+     * @return fist solution found, if one exists
      */
     template<size_t NumFixedRows, size_t N = 3,
             const auto rows = N * N,
@@ -227,7 +227,7 @@ namespace sudoku {
             const auto totalCols = 4 * (N * N * N * N),
             const auto arrayRows = rows * cols * digits,
             const auto arrayNodes = 4 * arrayRows>
-    constexpr std::optional<solution<N>> runSudoku(const std::string_view &sv) {
+    constexpr std::optional<solution<N>> runSudoku(const std::string_view &sv) noexcept {
         return dlx::DLX<totalCols, arrayRows, arrayNodes>::run(makeSudokuPositions<N>(),
                                                                makeFixedCells<NumFixedRows, N>(sv));
     }
@@ -239,13 +239,13 @@ namespace sudoku {
      *
      * @tparam N the size parameter of the Sudoku
      * @param sol a solution returned by DLX
-     * @return a boatd
+     * @return a board extracted from the Sudoku problem
      */
     template<size_t N = 3,
             const auto side = N * N,
             const auto N4 = side * side,
             const auto N6 = side * N4>
-    constexpr board<N> extractBoard(const solution<N> &sol) {
+    constexpr board<N> extractBoard(const solution<N> &sol) noexcept {
         board<N> b{};
 
         // Yes, N^6.
@@ -269,7 +269,7 @@ namespace sudoku {
      */
     template<size_t N = 3,
             const auto side = N * N>
-    void print_board(const board<N> &b) {
+    void print_board(const board<N> &b) noexcept {
         for (size_t i = 0; i < side; ++i) {
             for (size_t j = 0; j < side; ++j)
                 std::clog << b[i][j] << ' ';
@@ -284,7 +284,7 @@ namespace sudoku {
      * @param sol a solution returned by DLX
      */
     template<size_t N = 3>
-    void print_solution(const solution<N> &sol) {
+    void print_solution(const solution<N> &sol) noexcept {
         print_board<N>(extractBoard<N>(sol));
     }
 }

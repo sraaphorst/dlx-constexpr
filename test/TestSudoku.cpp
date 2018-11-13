@@ -42,7 +42,17 @@ TEST_CASE("Solve simple Sudoku") {
 }
 
 TEST_CASE("Solve extreme Sudoku") {
+
     constexpr auto sol = runSudoku<21,3>("800000000003600000070090200050007000000045700000100030001000068008500010090000400");
+    REQUIRE(sol);
+    print_solution<3>(*sol);
+}
+
+// Solve a Sudoku that only has 17 clues, from:
+// "There is no 16-Clue Sudoku: Solving the Sudoku Minimum Number of Clues Problem via Hitting Set Enumeration"
+// By Gary McGuire, Bastian Tugemann, Gilles Civario,, 2013.
+TEST_CASE("Solve minimal Sudoku") {
+    constexpr auto sol = runSudoku<17,3>("000801000000000043500000000000070800000000100020030000600000075003400000000200600");
     REQUIRE(sol);
     print_solution<3>(*sol);
 }

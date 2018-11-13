@@ -24,7 +24,7 @@ namespace cmath {
      * @param r
      * @return (n choose r)
      */
-    constexpr factype nCr(factype n, factype r) {
+    constexpr factype nCr(factype n, factype r) noexcept {
         if (n < r)
             return 0;
 
@@ -46,7 +46,7 @@ namespace cmath {
      * @return the rank of k-set
      */
     template<factype v, factype k>
-    constexpr factype rankKSubset(const std::array<factype, k> &kset) {
+    constexpr factype rankKSubset(const std::array<factype, k> &kset) noexcept {
         factype r = nCr(v, k);
         for (int i = 0; i < k; ++i)
             r -= nCr(v - kset[i] - 1, k - i);
@@ -61,7 +61,7 @@ namespace cmath {
      * @return the k-set
      */
     template<factype v, factype k>
-    constexpr std::array<factype, k> unrankKSubset(factype rank) {
+    constexpr std::array<factype, k> unrankKSubset(factype rank) noexcept {
         std::array<factype, k> kset{};
 
         factype vi = nCr(v, k);
@@ -93,7 +93,7 @@ namespace cmath {
      * @return the k-set that is the successor of kset under lexicographical ordering
      */
     template<factype v, factype k>
-    constexpr std::array<factype, k> succKSubset(std::array<factype, k> kset) {
+    constexpr std::array<factype, k> succKSubset(std::array<factype, k> kset) noexcept {
         for (factype i = k-1; i >= 0; --i) {
             ++kset[i];
             if (kset[i] < v && kset[i] + (k - i) <= v) {
@@ -121,7 +121,7 @@ namespace cmath {
             size_t rows = nCr(v, k),
             size_t nodes_per_row = nCr(k, t),
             size_t nodes = rows * nodes_per_row>
-    constexpr dlx::position_array<nodes> makeDesignPositions() {
+    constexpr dlx::position_array<nodes> makeDesignPositions() noexcept {
         dlx::position_array<nodes> array{};
 
         // Keep track of the current node.
@@ -161,7 +161,7 @@ namespace cmath {
             const auto rows = nCr(v, k),
             const auto nodes_per_row = nCr(k, t),
             const auto nodes = rows * nodes_per_row>
-    constexpr std::optional<std::array<bool, rows>> run_t_design() {
+    constexpr std::optional<std::array<bool, rows>> run_t_design() noexcept {
         // Solve, all constexpr!
         return dlx::DLX<cols, rows, nodes>::run(makeDesignPositions<v, k, t>());
     }
@@ -177,7 +177,7 @@ namespace cmath {
     template<size_t v,
             size_t k,
             const auto rows = nCr(v, k)>
-    void print_solution(const std::optional<std::array<bool, rows>> &solution) {
+    void print_solution(const std::optional<std::array<bool, rows>> &solution) noexcept {
         for (factype i = 0; i < rows; ++i)
             if ((*solution)[i]) {
                 auto kset = unrankKSubset<v, k>(i);

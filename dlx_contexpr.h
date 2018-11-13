@@ -94,7 +94,7 @@ namespace dlx {
          * @param columnIdx the index of the column
          */
         template <typename Data>
-        static constexpr void coverColumn(Data &&state, index columnIdx) {
+        static constexpr void coverColumn(Data &&state, index columnIdx) noexcept {
             assert(0 <= columnIdx && columnIdx < header);
 
             // Remove the column from the header.
@@ -125,7 +125,7 @@ namespace dlx {
          * @param columnIdx the index of the column
          */
         template <typename Data>
-        static constexpr void uncoverColumn(Data &&state, index columnIdx) {
+        static constexpr void uncoverColumn(Data &&state, index columnIdx) noexcept {
             assert(0 <= columnIdx && columnIdx < header);
 
             // Reverse the removal of the rows from coverColumn.
@@ -159,7 +159,7 @@ namespace dlx {
          * @param sol the solution
          */
         template <typename Data, typename Solution>
-        static constexpr void useRow(Data &&state, index rowIdx, Solution &&sol) {
+        static constexpr void useRow(Data &&state, index rowIdx, Solution &&sol) noexcept {
             assert(rowIdx > header && rowIdx < HeaderSize + NumNodes);
             sol[state.RM[rowIdx]] = true;
 
@@ -185,7 +185,7 @@ namespace dlx {
          * @param sol the solution
          */
         template <typename Data, typename Solution>
-        static constexpr void unuseRow(Data &&state, index rowIdx, Solution &&sol) {
+        static constexpr void unuseRow(Data &&state, index rowIdx, Solution &&sol) noexcept {
             assert(rowIdx > header && rowIdx < HeaderSize + NumNodes);
             sol[state.RM[rowIdx]] = false;
 
@@ -212,7 +212,7 @@ namespace dlx {
          * @return a solution if one exists, and nullopt if not
          */
         template <typename Data, typename Solution>
-        static constexpr std::optional<solution> find_solution(Data &&state, Solution &&sol) {
+        static constexpr std::optional<solution> find_solution(Data &&state, Solution &&sol) noexcept {
             // Check to see if we have a complete solution, i.e if the header only loops to itself.
             // We could modify this to make a callback for solutions and then iterate over them, but
             // I'm not sure how we would do this with constexpr.
@@ -268,7 +268,7 @@ namespace dlx {
          * @param positions the positions that describe the subsets
          * @return data object representing the DLX problem
          */
-        static constexpr data init(const position_array<NumNodes> &positions) {
+        static constexpr data init(const position_array<NumNodes> &positions) noexcept {
             data d{};
 
             // Create the header data.
@@ -336,7 +336,7 @@ namespace dlx {
          * Create the solution and initialize it.
          * @return empty solution array
          */
-        static constexpr solution init_solution() {
+        static constexpr solution init_solution() noexcept {
             solution sol{};
             for (auto &s: sol)
                 s = false;
@@ -353,7 +353,7 @@ namespace dlx {
          * @param positions list of the positions describing the subsets
          * @return the first solution found if one exists, or nullopt otherwise
          */
-        static constexpr std::optional<solution> run(const position_array<NumNodes> &positions) {
+        static constexpr std::optional<solution> run(const position_array<NumNodes> &positions) noexcept {
             return find_solution(init(positions), init_solution());
         }
 
@@ -368,7 +368,7 @@ namespace dlx {
          */
         template<size_t NumFixedRows>
         static constexpr std::optional<solution> run(const position_array<NumNodes> &positions,
-                const std::array<size_t, NumFixedRows> &fixed_rows) {
+                const std::array<size_t, NumFixedRows> &fixed_rows) noexcept {
             auto state = init(positions);
 
             // Initialize the solution.

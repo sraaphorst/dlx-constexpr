@@ -65,7 +65,7 @@ TEST_CASE("STS(7)") {
 TEST_CASE("STS(15)") {
     constexpr auto solution = cmath::run_t_design<15, 3, 2>();
     REQUIRE(solution);
-    cmath::print_solution<15, 3, 2>(solution);
+    cmath::print_solution<15, 3>(solution);
 }
 
 TEST_CASE("No STS(8)") {
@@ -76,10 +76,11 @@ TEST_CASE("No STS(8)") {
 TEST_CASE("SQS(8)") {
     constexpr auto solution = cmath::run_t_design<8, 4, 3>();
     REQUIRE(solution);
-    cmath::print_solution<8, 4, 3>(solution);
+    cmath::print_solution<8, 4>(solution);
 }
+
 TEST_CASE("SQS(10)") {
     constexpr auto solution = cmath::run_t_design<10, 4, 3>();
     REQUIRE(solution);
-    cmath::print_solution<10, 4, 3>(solution);
+    cmath::print_solution<10, 4>(solution);
 }
